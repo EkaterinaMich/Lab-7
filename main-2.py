@@ -1,26 +1,56 @@
-import json
 import requests
+import os
+from dotenv import load_dotenv
 
-def get_text():
-    headers = {
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYjJlMTIxYjUtOWJlNy00YjAzLWEzMGYtNjE3YjMxODVlYjRkIiwidHlwZSI6ImFwaV90b2tlbiJ9.lGQpMRulvr5QIAYIIEL4shQhqGtVbN0Zg_0VvJacDvo"}
+load_dotenv()
 
-    url = "https://api.edenai.run/v2/text/generation"
-    payload = {
-        "providers": "openai",
-        "text": "tell me something about space adventures",
-        "temperature": 0.2,
-        "max_tokens": 250
-    }
+WEATHER_URL = 'https://api.openweathermap.org/data/2.5/weather'
+API_KEY = os.getenv('api_weather')
 
-    response = requests.post(url, json=payload, headers=headers)
+class WeatherModel:
+    def __init__(self, api=API_KEY, url=WEATHER_URL):
+        self.api = api
+        self.url = url
 
-    result = json.loads(response.text)
+    def get_weather(self, city_name):
+        params = {
+            'q': city_name,
+            'appid': self.api,
+            'units': 'metric',
+            'lang': 'ru'
+        }
+
+        try:
+            res = requests.get(self.url, params=params)
+
+            # если код ответа не 200 — вызовет исключение
+            res.raise_for_status()
+
+            data = res.json()
+
+            temp = data['main']['temp']
+            desc = data['weather'][0]['description']
+            hum = data['main']['humidity']
+            pres = data['main']['pressure']
+
+            return f"""Погода в {city_name}:
+Температура: {temp}°C
+Описание: {desc}
+Влажность: {hum}%
+Давление: {pres} гПа"""
+
+        except requests.exceptions.HTTPError:
+            return "Ошибка: город не найден или неверный API ключ."
+
+        except requests.exceptions.ConnectionError:
+            return "Ошибка подключения к интернету."
+
+        except Exception as e:
+            return f"Произошла ошибка: {e}"
+
+
+if __name__ == '__main__':
+    weather = WeatherModel()
+    city = 'Moscow'
+    result = weather.get_weather(city)
     print(result)
-    print(result['openai']['generated_text'])
-
-city_name = 'Madrid'
-key = '2f44ab8d94825710392977b37c24d3ac'
-response = requests.post(f'https://api.openweathermap.org/data/2.5/weather?q={city_name}&appid={key}')
-result = json.loads(response.text)
-print(result)

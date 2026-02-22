@@ -1,36 +1,59 @@
 import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+NEWS_URL = 'https://newsapi.org/v2/everything'
+API = os.getenv('news_api')  
 
 
-def analyze(text_to_analyze):
-    url = 'http://api.text2data.com/v3/analyze'
-    payload = {
-        'DocumentText': f'{text_to_analyze}', 
-        'IsTwitterContent': 'false',
-        'PrivateKey': '94B27606-BF53-415D-B690-A45D611DF7C9', #add your private key here (you can find it in the admin panel once you sign-up)
-        'Secret':'123', #this should be set-up in admin panel as well
-        'RequestIdentifier': '' #optional, used for reporting context
-    }
- 
-    r = requests.post(url, data=payload)
-    data=r.json()
-    print(data)
+
+class NewsModel:
+    def __init__(self, api=API, url=NEWS_URL):
+        self.api = api
+        self.url = url
+
+    def get_news(self, topic):
+
+        params = {
+            "q": topic,
+            "apiKey": self.api,
+            "pageSize": 1,
+            "language": "ru",
+            "sortBy": "publishedAt"
+        }
+
+        try:
+            res = requests.get(self.url, params=params)
+            res.raise_for_status()
+
+            data = res.json()
+
+            articles = data.get('articles', [])
+            if not articles:
+                return "Статья не найдена"
+
+            article = articles[0]
+
+            source = article['source']['name']
+            author = article.get('author', 'Неизвестно')
+            title = article['title']
+            description = article.get('description', 'Нет описания')
+            url = article['url']
+
+            return f"""Источник: {source}
+Автор: {author}
+Заголовок: {title}
+Описание: {description}
+Ссылка: {url}"""
+
+        except Exception as e:
+            return f"Произошла ошибка при получении новостей: {e}"
 
 
-while True:
-    site = input('1 - cats, 2 - logos, 0 - exit: ')
-    match site:
-        case '1':
-            response = requests.get('https://meowfacts.herokuapp.com')
-            response = response.json()
-            analyze(response['data'])
-
-        case '2':
-            response = requests.get('https://www.logotypes.dev/random/data')
-            response = response.json()
-            analyze(response['example_description'])
-        
-        case '0':
-            break
-
-        case _:
-            print("Try again!")
+if __name__ == '__main__':
+    news = NewsModel()
+    topic = "котики"
+    result = news.get_news(topic)
+    print(result)
